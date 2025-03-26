@@ -4,7 +4,6 @@ WORKDIR /var/www/html
 
 COPY composer.json composer.lock symfony.lock .env src public config bin ./
 
-
 # use the builder container at begining of Dockerfile if you need a specific build
 # extension json is a fake example because it is packaged in php8.3
 
@@ -18,9 +17,9 @@ COPY composer.json composer.lock symfony.lock .env src public config bin ./
 #    dnf install -y php-devel php-pear php83
 #
 #RUN ln -s /usr/bin/php83 /usr/local/bin/php
-#RUN /opt/remi/php83/root/usr/bin/pecl install xdebug
+#RUN /opt/remi/php83/root/usr/bin/pecl install json
 #RUN mkdir /extensions
-#RUN find /usr/lib64/php/8.3/modules/ -name "xdebug.so" -exec cp {} /extensions \;
+#RUN find /usr/lib64/php/8.3/modules/ -name "json.so" -exec cp {} /extensions \;
 #RUN find /etc/opt/remi/php83/php.d -name "*.ini" -exec cp {} /extensions \;
 
 FROM registry.access.redhat.com/ubi8/ubi:8.10-1184.1741863532 AS venus_php_base
@@ -34,9 +33,9 @@ RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.n
     dnf module reset php -y && \
     dnf module enable php:remi-8.3 -y && \
     dnf update -y && \
-    dnf install -y dcmtk httpd php-gettext php83 php83-php-fpm php83-php-pecl-apcu php83-php-bcmath php83-php-gd \
+    dnf install -y httpd php-gettext php83 php83-php-fpm php83-php-pecl-apcu php83-php-bcmath php83-php-gd \
     php83-php-intl php83-php-mbstring php83-php-opcache php83-php-pdo php83-php-soap php83-php-sodium \
-    php83-php-xml php83-php-pecl-redis6 php83-php-pecl-zip && \
+    php83-php-xml php83-php-pecl-redis6 php83-php-pecl-zip acl dcmtk && \
     sed -i -e 's/;listen = 127.0.0.1:9000/listen = \/run\/php-fpm\/www.sock/g' \
            -e 's/;user = apache/user = apache/g' \
            -e 's/;group = apache/group = apache/g' \
@@ -45,8 +44,8 @@ RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.n
            -e 's/^#LoadModule\s*proxy_fcgi_module/LoadModule proxy_fcgi_module/' \
            /etc/httpd/conf.modules.d/00-proxy.conf && \
     echo "ServerName localhost" >> /etc/httpd/conf/httpd.conf && \
-    mkdir -p /run/php-fpm && \
-    chown -R apache:apache /var/www/html /run/php-fpm && \
+    mkdir -p /run/php-fpm /var/www/html/var/log /var/www/html/var/cache && \
+    chown -R apache:apache /run/php-fpm && \
     chmod 775 /run/php-fpm && \
     dnf clean all
 
@@ -75,6 +74,7 @@ RUN curl -1sLf 'https://dl.cloudsmith.io/public/symfony/stable/setup.rpm.sh' | b
 # Copy compiled extensions and config files from php_pecl_builder
 #COPY --from=php_pecl_builder /extensions/xdebug.so /usr/lib64/php/8.3/modules/
 #COPY --from=php_pecl_builder /extensions/xdebug.ini /etc/opt/remi/php83/php.d/
+RUN setfacl -m u:apache:rwx /tmp /var/www/html/var /var/www/html/var/log /var/www/html/var/cache
 
 EXPOSE 80 443
 
